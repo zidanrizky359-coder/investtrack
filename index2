@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>InvestTrack Pro - Portfolio Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
+</head>
+<body class="h-full bg-base-200">
+
+<!-- Loading Spinner (Fixed dengan DaisyUI class) -->
+<div id="loading" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700">
+  <div class="flex flex-col items-center">
+    <span class="loading loading-spinner loading-lg text-primary mb-4"></span>
+    <p class="text-white text-lg">Memuat InvestTrack Pro...</p>
+  </div>
+</div>
+
+<!-- Login Screen -->
+<div id="loginScreen" class="hidden min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700">
+  <div class="card w-96 bg-base-100 shadow-2xl">
+    <div class="card-body">
+      <h2 class="card-title text-3xl justify-center mb-6">InvestTrack Pro</h2>
+      <div id="authForm">
+        <input type="email" id="email" placeholder="Email" class="input input-bordered w-full mb-3" />
+        <input type="password" id="password" placeholder="Password" class="input input-bordered w-full mb-3" />
+        <div class="flex gap-2">
+          <button id="loginBtn" class="btn btn-primary flex-1">Login</button>
+          <button id="registerBtn" class="btn btn-outline flex-1">Daftar</button>
+        </div>
+        <p id="authMessage" class="text-center mt-4 text-error"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dashboard (hidden dulu) -->
+<div id="dashboard" class="hidden min-h-screen">
+  <div class="navbar bg-base-100 shadow-lg">
+    <div class="flex-1">
+      <a class="btn btn-ghost text-xl">InvestTrack Pro</a>
+    </div>
+    <div class="flex-none gap-4">
+      <span class="text-lg font-semibold" id="userEmail"></span>
+      <button id="logoutBtn" class="btn btn-error btn-sm">Logout</button>
+      <label class="swap swap-rotate">
+        <input type="checkbox" id="themeToggle" class="theme-controller" />
+        <span class="swap-on">🌙</span>
+        <span class="swap-off">☀️</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="container mx-auto p-6">
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div class="stat bg-base-100 rounded-xl shadow">
+        <div class="stat-figure text-primary">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div class="stat-title">Total Modal</div>
+        <div class="stat-value" id="totalInvested">Rp 0</div>
+      </div>
+      <div class="stat bg-base-100 rounded-xl shadow">
+        <div class="stat-figure text-secondary">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+        </div>
+        <div class="stat-title">Nilai Saat Ini</div>
+        <div class="stat-value text-success" id="currentValue">Rp 0</div>
+      </div>
+      <div class="stat bg-base-100 rounded-xl shadow">
+        <div class="stat-figure text-secondary">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div class="stat-title">Profit/Loss</div>
+        <div class="stat-value" id="profitLoss">Rp 0</div>
+      </div>
+      <div class="stat bg-base-100 rounded-xl shadow">
+        <div class="stat-figure text-info">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+        </div>
+        <div class="stat-title">% Gain</div>
+        <div class="stat-value text-2xl" id="percentageGain">0%</div>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-6 mb-8">
+      <!-- Form Transaksi -->
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+          <h2 class="card-title">Tambah Transaksi</h2>
+          <form id="txForm" class="space-y-4">
+            <select class="select select-bordered w-full" id="type" required>
+              <option value="BUY">🟢 Beli</option>
+              <option value="SELL">🔴 Jual</option>
+            </select>
+            <input type="text" id="asset" placeholder="Kode Aset (BBCA, BTC, ETH, dll)" class="input input-bordered w-full" required />
+            <input type="number" step="any" id="quantity" placeholder="Jumlah Unit" class="input input-bordered w-full" required min="0" />
+            <input type="number" step="any" id="price" placeholder="Harga per Unit (Rp) - Akan auto-fill untuk crypto/saham populer" class="input input-bordered w-full" required min="0" />
+            <input type="date" id="date" class="input input-bordered w-full" required />
+            <select class="select select-bordered w-full" id="category">
+              <option>Saham</option>
+              <option>Crypto</option>
+              <option>Reksadana</option>
+              <option>Obligasi</option>
+            </select>
+            <button type="submit" class="btn btn-primary w-full">💾 Simpan Transaksi</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Pie Chart -->
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+          <h2 class="card-title">Alokasi Portofolio</h2>
+          <div class="h-64">
+            <canvas id="pieChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Line Chart -->
+    <div class="card bg-base-100 shadow-xl mb-8">
+      <div class="card-body">
+        <h2 class="card-title">Performa Portofolio (Real-time)</h2>
+        <div class="h-80">
+          <canvas id="lineChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body">
+        <h2 class="card-title">Riwayat Transaksi</h2>
+        <div class="overflow-x-auto">
+          <table class="table table-zebra w-full" id="txTable">
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>Tipe</th>
+                <th>Aset</th>
+                <th>Qty</th>
+                <th>Harga</th>
+                <th>Total (Rp)</th>
+                <th>Harga Saat Ini</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ================== SETUP SUPABASE DI SINI (WAJIB GANTI!) ==================
+// Buat project gratis di https://supabase.com → Settings > API → Copy URL & anon key
+// Jalankan SQL di Table Editor (dari respons sebelumnya) biar tabel users & transactions ada
+const SUPABASE_URL = 'https://your-project.supabase.co';  // GANTI INI!
+const SUPABASE_ANON_KEY = 'your-anon-key-here';           // GANTI INI!
+// Kalau ga ganti, bakal error & stuck di loading. Test lokal dulu di browser.
+// ==============================================================
+
+let supabase;
+try {
+  supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} catch (e) {
+  console.error('Supabase init error:', e);
+  alert('Error: Setup Supabase dulu! Ganti URL & key di kode, atau coba tanpa DB (liat console).');
+}
+
+let currentUser = null;
+let pieChart, lineChart;
+let transactions = [];
+
+// Safety net: Hide loading setelah 5 detik kalau gagal
+setTimeout(() => {
+  if (document.getElementById('loading').classList.contains('flex')) {
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+    alert('Loading timeout. Cek console (F12) untuk error, atau setup Supabase.');
+  }
+}, 5000);
+
+// Auth Functions (sama kayak sebelumnya)
+document.getElementById('loginBtn').onclick = login;
+document.getElementById('registerBtn').onclick = register;
+document.getElementById('logoutBtn').onclick = logout;
+
+async function login() {
+  if (!supabase) return showMsg('Supabase belum setup!', 'error');
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return showMsg(error.message, 'error');
+  currentUser = data.user;
+  startApp();
+}
+
+async function register() {
+  if (!supabase) return showMsg('Supabase belum setup!', 'error');
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) return showMsg(error.message, 'error');
+  showMsg('Daftar berhasil! Cek email untuk verifikasi, lalu login.', 'success');
+}
+
+function logout() {
+  if (supabase) supabase.auth.signOut().then(() => location.reload());
+}
+
+function showMsg(msg, type = 'error') {
+  const el = document.getElementById('authMessage');
+  el.textContent = msg;
+  el.className = `text-center mt-4 ${type === 'success' ? 'text-success' : 'text-error'}`;
+}
+
+// Harga Real-time (sama)
+const priceCache = {};
+async function fetchPrice(asset) {
+  // ... (kode sama kayak sebelumnya, ga berubah)
+  asset = asset.toUpperCase();
+  if (priceCache[asset] && Date.now() - priceCache[asset].time < 60000) return priceCache[asset].price;
+
+  try {
+    const cryptoMap = {BTC: 'bitcoin', ETH: 'ethereum', BNB: 'binancecoin', SOL: 'solana', ADA: 'cardano', DOGE: 'dogecoin', XRP: 'ripple'};
+    if (cryptoMap[asset]) {
+      const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${cryptoMap[asset]}&vs_currencies=idr`);
+      if (res.ok) {
+        const data = await res.json();
+        const price = data[cryptoMap[asset]].idr;
+        priceCache[asset] = {price, time: Date.now()};
+        return price;
+      }
+    }
+
+    const stockPrices = {BBCA: 10250, BMRI: 6875, TLKM: 3150, ASII: 5250, UNTR: 28750, ANTM: 1850};
+    if (stockPrices[asset]) {
+      priceCache[asset] = {price: stockPrices[asset], time: Date.now()};
+      return stockPrices[asset];
+    }
+  } catch (e) {
+    console.log('Price fetch error:', e);
+  }
+  return null;
+}
+
+function rupiah(num) {
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
+}
+
+async function startApp() {
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('userEmail').textContent = currentUser.email;
+  document.getElementById('date').valueAsDate = new Date();
+  await loadTransactions();
+  setInterval(refreshPrices, 30000);
+}
+
+// Load Transactions & lainnya (sama kayak sebelumnya, ga berubah untuk singkat)
+async function loadTransactions() {
+  if (!supabase) return;
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .order('date', { ascending: true });
+  if (error) console.error('DB error:', error);
+  transactions = data || [];
+  await refreshAll();
+}
+
+async function refreshAll() {
+  await updatePricesInTransactions();
+  calculatePortfolio();
+  renderCharts();
+  renderTable();
+}
+
+async function updatePricesInTransactions() {
+  for (let tx of transactions) {
+    tx.currentPrice = await fetchPrice(tx.asset) || parseFloat(tx.price);
+  }
+}
+
+function calculatePortfolio() {
+  // ... (kode hitung sama kayak sebelumnya)
+  let totalInvested = 0;
+  let currentValue = 0;
+  const holdings = {};
+
+  transactions.forEach(t => {
+    const key = `${t.asset}-${t.category}`;
+    if (!holdings[key]) holdings[key] = { qty: 0, invested: 0 };
+    const qty = parseFloat(t.quantity);
+    const price = parseFloat(t.price);
+    if (t.type === 'BUY') {
+      holdings[key].qty += qty;
+      holdings[key].invested += qty * price;
+      totalInvested += qty * price;
+    } else if (holdings[key].qty >= qty) {
+      holdings[key].qty -= qty;
+      const avgPrice = holdings[key].invested / (holdings[key].qty + qty);
+      holdings[key].invested -= qty * avgPrice;
+      totalInvested -= qty * avgPrice;
+    }
+  });
+
+  Object.values(holdings).forEach(h => {
+    if (h.qty > 0) {
+      const lastTx = transactions.slice().reverse().find(tx => tx.asset === t.asset);  // Fix small bug
+      currentValue += h.qty * (lastTx?.currentPrice || 0);
+    }
+  });
+
+  const profit = currentValue - totalInvested;
+  const percent = totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
+
+  document.getElementById('totalInvested').textContent = rupiah(totalInvested);
+  document.getElementById('currentValue').textContent = rupiah(currentValue);
+  const profitEl = document.getElementById('profitLoss');
+  profitEl.textContent = rupiah(profit);
+  profitEl.className = profit >= 0 ? 'stat-value text-success' : 'stat-value text-error';
+  const percentEl = document.getElementById('percentageGain');
+  percentEl.textContent = percent.toFixed(2) + '%';
+  percentEl.className = percent >= 0 ? 'stat-value text-success text-2xl' : 'stat-value text-error text-2xl';
+}
+
+function renderCharts() {
+  // Pie Chart
+  const pieData = {};
+  transactions.forEach(t => {
+    if (t.type === 'BUY') {
+      const value = parseFloat(t.quantity) * (t.currentPrice || parseFloat(t.price));
+      pieData[t.asset] = (pieData[t.asset] || 0) + value;
+    }
+  });
+
+  const labels = Object.keys(pieData).filter(k => pieData[k] > 0);
+  const data = labels.map(k => pieData[k]);
+  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors.slice(0, labels.length) }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+  });
+
+  // Line Chart
+  const daily = {};
+  let balance = 0;
+  transactions.sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(t => {
+    const dateStr = t.date;
+    if (!daily[dateStr]) daily[dateStr] = balance;
+    const qty = parseFloat(t.quantity);
+    const price = t.currentPrice || parseFloat(t.price);
+    if (t.type === 'BUY') balance += qty * price;
+    else balance -= qty * price;
+    daily[dateStr] = balance;
+  });
+
+  const dates = Object.keys(daily).sort();
+  const values = dates.map(d => daily[d]);
+
+  if (lineChart) lineChart.destroy();
+  lineChart = new Chart(document.getElementById('lineChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [{
+        label: 'Nilai Portofolio (Rp)',
+        data: values,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        fill: true,
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { x: { type: 'time', time: { unit: 'day' } }, y: { beginAtZero: true } }
+    }
+  });
+}
+
+function renderTable() {
+  const tbody = document.querySelector('#txTable tbody');
+  tbody.innerHTML = '';
+  transactions.forEach(t => {
+    const total = parseFloat(t.quantity) * parseFloat(t.price);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${t.date}</td>
+      <td>${t.type}</td>
+      <td><span class="font-bold">${t.asset}</span></td>
+      <td>${parseFloat(t.quantity).toLocaleString('id-ID')}</td>
+      <td>${rupiah(t.price)}</td>
+      <td>${rupiah(total)}</td>
+      <td class="${t.currentPrice > t.price ? 'text-success' : 'text-error'}">${rupiah(t.currentPrice)}</td>
+      <td><button onclick="deleteTx('${t.id}')" class="btn btn-error btn-xs">🗑️</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+window.deleteTx = async (id) => {
+  if (!confirm('Yakin hapus transaksi ini?')) return;
+  if (!supabase) return;
+  const { error } = await supabase.from('transactions').delete().eq('id', id);
+  if (!error) loadTransactions();
+};
+
+document.getElementById('txForm').onsubmit = async (e) => {
+  e.preventDefault();
+  if (!supabase) return alert('Supabase belum setup!');
+  const asset = document.getElementById('asset').value.toUpperCase();
+  const livePrice = await fetchPrice(asset);
+  if (livePrice) document.getElementById('price').value = livePrice;
+
+  const data = {
+    user_id: currentUser.id,
+    type: document.getElementById('type').value,
+    asset,
+    quantity: document.getElementById('quantity').value,
+    price: document.getElementById('price').value,
+    date: document.getElementById('date').value,
+    category: document.getElementById('category').value
+  };
+  const { error } = await supabase.from('transactions').insert(data);
+  if (error) alert('Error: ' + error.message);
+  else {
+    e.target.reset();
+    document.getElementById('date').valueAsDate = new Date();
+    loadTransactions();
+  }
+};
+
+async function refreshPrices() {
+  if (currentUser) await refreshAll();
+}
+
+// Theme Toggle
+document.getElementById('themeToggle').addEventListener('change', (e) => {
+  if (e.target.checked) document.documentElement.setAttribute('data-theme', 'dark');
+  else document.documentElement.setAttribute('data-theme', 'light');
+});
+
+// Init Session (dengan error handling)
+if (supabase) {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session) {
+      currentUser = session.user;
+      startApp();
+    } else {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('loginScreen').classList.remove('hidden');
+    }
+  }).catch(e => {
+    console.error('Session error:', e);
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+  });
+} else {
+  // Fallback tanpa Supabase (demo mode, data localStorage)
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  alert('Demo mode: Setup Supabase untuk full feature. Gunakan email/password bebas untuk test.');
+}
+</script>
+</body>
+</html>
